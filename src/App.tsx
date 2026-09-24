@@ -56,8 +56,8 @@ function App() {
       const a = accelerationRef.current;
       setScore(prev => prev + Math.floor(a));
       
-      if (a > 20 && navigator.vibrate) {
-        navigator.vibrate(50);
+      if (navigator.vibrate) {
+        navigator.vibrate(30);
       }
     }
   }, [setTorchState]);
@@ -69,7 +69,7 @@ function App() {
     const runLoop = () => {
       const a = accelerationRef.current;
       
-      if (a < 1) {
+      if (a < 6) {
         // Stopped or Idle
         if (isFlashingRef.current) {
           isFlashingRef.current = false;
@@ -86,8 +86,8 @@ function App() {
       // Cheering
       if (appState !== 'cheering') setAppState('cheering');
 
-      // T(A) = 3000 - ((A - 1) * 2950) / 24
-      let t = 3000 - ((a - 1) * 2950) / 24;
+      // T(A) interpolates from A=6 (3000ms) to A=25 (50ms)
+      let t = 3000 - ((a - 6) * 2950) / 19;
       if (t < 50) t = 50;
       if (t > 3000) t = 3000;
 
@@ -103,12 +103,23 @@ function App() {
     };
   }, [appState, toggleFlash, setTorchState]);
 
-  // Cleanup
+  // Cleanup Wake Lock
   useEffect(() => {
     return () => {
       releaseWakeLock();
     };
   }, []);
+
+  // Decrease score when idle
+  useEffect(() => {
+    if (appState !== 'idle') return;
+
+    const intervalId = setInterval(() => {
+      setScore(prev => Math.max(0, prev - 10));
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [appState]);
 
   const bgClass = isFlashing ? (hasTorch ? 'bg-zinc-900' : 'bg-white') : 'bg-black';
   const textClass = isFlashing && !hasTorch ? 'text-black' : 'text-white';
