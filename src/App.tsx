@@ -86,10 +86,10 @@ function App() {
       // Cheering
       if (appState !== 'cheering') setAppState('cheering');
 
-      // T(A) interpolates from A=6 (3000ms) to A=25 (50ms)
-      let t = 3000 - ((a - 6) * 2950) / 19;
+      // T(A) interpolates from A=6 (2000ms) to A=15 (50ms)
+      let t = 2000 - ((a - 6) * 1950) / 9;
       if (t < 50) t = 50;
-      if (t > 3000) t = 3000;
+      if (t > 2000) t = 2000;
 
       toggleFlash();
 
@@ -115,18 +115,19 @@ function App() {
     if (appState !== 'idle') return;
 
     const intervalId = setInterval(() => {
-      setScore(prev => Math.max(0, prev - 10));
+      setScore(prev => {
+        // Mức điểm trừ = mức điểm cuồng nhiệt * 3%
+        const deduction = Math.ceil(prev * 0.03);
+        return Math.max(0, prev - deduction);
+      });
     }, 1000);
 
     return () => clearInterval(intervalId);
   }, [appState]);
 
-  const bgClass = isFlashing ? (hasTorch ? 'bg-zinc-900' : 'bg-white') : 'bg-black';
-  const textClass = isFlashing && !hasTorch ? 'text-black' : 'text-white';
-
   if (appState === 'onboarding') {
     return (
-      <div className="flex flex-col items-center justify-center w-full h-full bg-black text-white p-6">
+      <div className="flex flex-col items-center justify-center w-full h-full bg-black text-white p-6 z-50 relative">
         <h1 className="text-4xl font-bold mb-4 text-center">Shake-to-Cheer</h1>
         <p className="text-center text-gray-400 mb-8 max-w-md">
           Biến điện thoại của bạn thành một lightstick cuồng nhiệt! 
@@ -142,29 +143,53 @@ function App() {
     );
   }
 
-  return (
-    <div className={`flex flex-col items-center justify-center w-full h-full transition-colors duration-75 ${bgClass} ${textClass}`}>
-      <div className="absolute top-10 left-0 w-full text-center">
-        <div className="text-sm uppercase tracking-widest opacity-70 mb-1">Điểm Cuồng Nhiệt</div>
-        <div className="text-6xl font-black font-mono">{score.toLocaleString()}</div>
-      </div>
-      
-      <div className="flex flex-col items-center justify-center">
-        {appState === 'idle' ? (
-          <div className="text-2xl opacity-50 animate-pulse">
-            Bắt đầu lắc điện thoại!
-          </div>
-        ) : (
-          <div className="text-4xl font-bold italic opacity-90 tracking-wider">
-            CHEERING!
-          </div>
-        )}
-      </div>
+  // Calculate sliding percentage
+  // 100 points = 1% translation. Max translation for a 200vh div is 50%.
+  // So max valid score for translation is 50 * 100 = 5000 points.
+  const slidePercent = Math.min(score / 100, 50);
 
-      <div className="absolute bottom-10 left-0 w-full text-center opacity-40 text-sm">
-        Gia tốc: {acceleration.toFixed(1)} m/s²
-        <br />
-        Chế độ: {hasTorch ? 'Flash Camera' : 'Chớp Màn Hình'}
+  // Middle text points change
+  const currentDeduction = Math.ceil(score * 0.03);
+  const addedPoints = Math.floor(acceleration);
+
+  return (
+    <div className="relative w-full h-full overflow-hidden text-white bg-black">
+      
+      {/* Sliding Gradient Background */}
+      <div 
+        className="absolute top-0 left-0 w-full transition-transform duration-1000 ease-linear"
+        style={{
+          height: '200vh',
+          background: 'linear-gradient(to bottom, #000000 0%, #1e3a8a 40%, #06b6d4 70%, #ef4444 100%)',
+          transform: `translateY(-${slidePercent}%)`
+        }}
+      />
+
+      {/* Flash Overlay */}
+      <div 
+        className={`absolute inset-0 z-10 transition-colors duration-75 ${
+          isFlashing ? (hasTorch ? 'bg-black/10' : 'bg-white') : 'bg-transparent'
+        }`} 
+      />
+
+      {/* Content */}
+      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+        <div className="absolute top-10 left-0 w-full text-center">
+          <div className="text-sm uppercase tracking-widest opacity-90 mb-1">Điểm Cuồng Nhiệt</div>
+          <div className="text-6xl font-black font-mono text-white">{score.toLocaleString()}</div>
+        </div>
+        
+        <div className="flex flex-col items-center justify-center">
+          <div className={`text-6xl font-bold italic tracking-wider ${appState === 'cheering' ? 'text-green-400' : 'text-red-400'}`}>
+            {appState === 'cheering' ? `+ ${addedPoints}` : `- ${currentDeduction}`}
+          </div>
+        </div>
+
+        <div className="absolute bottom-10 left-0 w-full text-center opacity-80 text-sm text-white font-medium">
+          Gia tốc: {acceleration.toFixed(1)} m/s²
+          <br />
+          Chế độ: {hasTorch ? 'Flash Camera' : 'Chớp Màn Hình'}
+        </div>
       </div>
     </div>
   );
