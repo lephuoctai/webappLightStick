@@ -13,17 +13,31 @@ export function useTorch() {
       const track = stream.getVideoTracks()[0];
       
       // Bind to a hidden video element to ensure the stream stays active
-      // (Required on some mobile browsers for torch to work)
+      // (Required on some mobile browsers for torch to work. display: none can pause the stream!)
       const video = document.createElement('video');
       video.srcObject = stream;
       video.setAttribute('autoplay', '');
       video.setAttribute('playsinline', '');
-      video.style.display = 'none';
+      video.setAttribute('muted', '');
+      video.style.position = 'fixed';
+      video.style.top = '0';
+      video.style.left = '0';
+      video.style.width = '1px';
+      video.style.height = '1px';
+      video.style.opacity = '0.01';
+      video.style.pointerEvents = 'none';
+      video.style.zIndex = '-9999';
       document.body.appendChild(video);
       videoRef.current = video;
 
+      try {
+        await video.play();
+      } catch (e) {
+        console.warn('Video play failed', e);
+      }
+
       // Wait a moment for capabilities to be populated
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       const capabilities = track.getCapabilities() as any;
       if (capabilities.torch || 'torch' in capabilities) {

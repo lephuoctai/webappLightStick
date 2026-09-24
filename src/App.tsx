@@ -7,10 +7,21 @@ type AppState = 'onboarding' | 'idle' | 'cheering';
 function App() {
   const [appState, setAppState] = useState<AppState>('onboarding');
   const [score, setScore] = useState<number>(0);
+  const [highScore, setHighScore] = useState<number>(() => {
+    return parseInt(localStorage.getItem('lightstick_high_score') || '0', 10);
+  });
   const [isFlashing, setIsFlashing] = useState<boolean>(false);
   
   const { acceleration, requestPermission: requestMotionPerm } = useDeviceMotion();
   const { hasTorch, initCamera, setTorchState } = useTorch();
+
+  // Track high score
+  useEffect(() => {
+    if (score > highScore) {
+      setHighScore(score);
+      localStorage.setItem('lightstick_high_score', score.toString());
+    }
+  }, [score, highScore]);
 
   const accelerationRef = useRef<number>(0);
   const isFlashingRef = useRef<boolean>(false);
@@ -144,9 +155,13 @@ function App() {
   }
 
   // Calculate sliding percentage
-  // 100 points = 1% translation. Max translation for a 200vh div is 50%.
-  // So max valid score for translation is 50 * 100 = 5000 points.
-  const slidePercent = Math.min(score / 100, 50);
+  // 100 points = 1% translation progress. Max progress is 100% (at 10,000 points).
+  const slideProgress = Math.min(score / 100, 100);
+  
+  // Div height is 1100vh. To slide it so the bottom 100vh is visible,
+  // we need to translate by -1000vh.
+  // As a percentage of the div's height (1100vh), 1000vh is ~90.909%.
+  const translateY = (slideProgress / 100) * 90.909;
 
   // Middle text points change
   const currentDeduction = Math.ceil(score * 0.03);
@@ -159,9 +174,9 @@ function App() {
       <div 
         className="absolute top-0 left-0 w-full transition-transform duration-1000 ease-linear"
         style={{
-          height: '200vh',
-          background: 'linear-gradient(to bottom, #000000 0%, #1e3a8a 40%, #06b6d4 70%, #ef4444 100%)',
-          transform: `translateY(-${slidePercent}%)`
+          height: '1100vh',
+          background: 'linear-gradient(to bottom, #000000 0%, #0f172a 10%, #1e3a8a 20%, #1d4ed8 30%, #3b82f6 40%, #06b6d4 50%, #10b981 60%, #eab308 70%, #f97316 80%, #ef4444 90%, #991b1b 100%)',
+          transform: `translateY(-${translateY}%)`
         }}
       />
 
@@ -177,6 +192,9 @@ function App() {
         <div className="absolute top-10 left-0 w-full text-center">
           <div className="text-sm uppercase tracking-widest opacity-90 mb-1">Điểm Cuồng Nhiệt</div>
           <div className="text-6xl font-black font-mono text-white">{score.toLocaleString()}</div>
+          <div className="text-xs uppercase tracking-widest opacity-70 mt-2 text-yellow-300">
+            Highest: {highScore.toLocaleString()}
+          </div>
         </div>
         
         <div className="flex flex-col items-center justify-center">
